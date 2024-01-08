@@ -24,6 +24,7 @@ public class PlayController : CreatureController
     protected bool _attackedCoolTime = false;
     protected string _userName = "";
     protected TMP_Text _usernameText = null;
+    protected Type.CharacterType _characterType;
 
     private void OnDestroy()
     {
@@ -33,7 +34,7 @@ public class PlayController : CreatureController
 
     void Update()
     {
-        switch (_moveType) 
+        switch (_moveType)
         {
             case Type.MoveType.Mouse:
                 MouseMoveUpdate();
@@ -47,19 +48,19 @@ public class PlayController : CreatureController
         UpdateAnimation();
     }
 
-    public virtual void UpdateSync(Type.MoveType moveType, Type.State state, Type.Dir dir, Type.Dir mouseDir, Vector3 nowPos, Quaternion quaternion, Vector3 target)
+    public virtual void UpdateSync(Type.MoveType moveType, Type.State state, Type.Dir dir, Type.Dir mouseDir, Vector3 nowPos, Quaternion quaternion, Vector3 target, Vector3 anagle)
     {
-        
+
     }
 
-    public void MouseMoveUpdate() 
+    public void MouseMoveUpdate()
     {
         Type.State prevState = _state;
         Vector3 prevTarget = _target;
 
         MouseMove_Update_Input();
 
-        switch (_state) 
+        switch (_state)
         {
             case Type.State.IDLE:
                 MouseMove_Update_IDLE();
@@ -81,13 +82,13 @@ public class PlayController : CreatureController
         int nowZ = (int)nowPos.z;
 
         if (prevX != nowX || prevZ != nowZ)
-        { 
+        {
             SendSyncMap();
             _mousePrevPos = nowPos;
         }
     }
 
-    public void KeyBoardMoveUpdate() 
+    public void KeyBoardMoveUpdate()
     {
         if (_death) return;
 
@@ -140,9 +141,9 @@ public class PlayController : CreatureController
     public virtual void SendSyncMap() { }
 
     public virtual void Death() { }
-    public virtual void Talk(string msg) 
+    public virtual void Talk(string msg)
     {
-        if (_talk != null) 
+        if (_talk != null)
         {
             Managers.Resource.Destory(_talk);
             _talk = null;
@@ -154,9 +155,9 @@ public class PlayController : CreatureController
         StartCoroutine(CoTalk());
     }
 
-    IEnumerator CoTalk() 
+    IEnumerator CoTalk()
     {
-        yield return new WaitForSeconds(1.5f); 
+        yield return new WaitForSeconds(1.5f);
         if (_talk != null) Managers.Resource.Destory(_talk);
         _talk = null;
     }
@@ -168,7 +169,7 @@ public class PlayController : CreatureController
 
     public virtual void SetExp(int level, float exp, float expMax)
     {
- 
+
     }
 
     public virtual void SetHp(float hp) { }
@@ -183,7 +184,7 @@ public class PlayController : CreatureController
 
     }
 
-    public void SetUserName(string userName) 
+    public void SetUserName(string userName)
     {
         GameObject go = Managers.Resource.Instantiate("UI/Username");
         _usernameText = go.transform.GetChild(0).GetComponent<TMP_Text>();
@@ -191,8 +192,44 @@ public class PlayController : CreatureController
         _usernameText.text = userName;
     }
 
-    public string GetUserName() 
+    public string GetUserName()
     {
         return _userName;
+    }
+
+    public void SetCharacterType(Type.CharacterType type)
+    {
+        _characterType = type;
+    }
+
+    // 재귀적으로 하위 GameObject를 찾는 함수
+    public Transform FindChildRecursively(Transform parentTransform, string childName)
+    {
+        // 현재 부모 GameObject에서 하위 GameObject를 찾기
+        Transform childTransform = parentTransform.Find(childName);
+
+        // 만약 찾았다면 반환
+        if (childTransform != null)
+        {
+            return childTransform;
+        }
+        else
+        {
+            // 찾지 못했다면 모든 자식들에 대해 재귀적으로 검색
+            foreach (Transform child in parentTransform)
+            {
+                // 자식의 자식에 대해 재귀적으로 검색
+                Transform foundInChildren = FindChildRecursively(child, childName);
+
+                // 만약 찾았다면 반환
+                if (foundInChildren != null)
+                {
+                    return foundInChildren;
+                }
+            }
+
+            // 모든 자식에 대해 검색을 완료했지만 찾지 못한 경우
+            return null;
+        }
     }
 }

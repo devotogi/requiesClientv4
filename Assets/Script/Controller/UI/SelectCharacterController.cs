@@ -99,6 +99,31 @@ public class SelectCharacterController : MonoBehaviour
         }
     }
 
+    public void DeleteCharater() 
+    {
+        if (selectObject == null) return;
+
+        PlayerSelectObject pl = selectObject.GetComponent<PlayerSelectObject>();
+        byte[] playerNameBytes = Encoding.Unicode.GetBytes(pl.playerName);
+        int playerNameLen = playerNameBytes.Length;
+        int userSQ = Managers.Data.userSQ;
+        byte playerType = (byte)pl.characterType;
+        byte[] bytes = new byte[1000];
+        MemoryStream ms = new MemoryStream(bytes);
+        ms.Position = 0;
+
+        int pktSize = 4 + 4 + playerNameLen + 1 + 4;
+
+        BinaryWriter bw = new BinaryWriter(ms);
+        bw.Write((Int16)Type.PacketProtocol.C2S_DELETECHARACTER);
+        bw.Write((Int16)pktSize);
+        bw.Write((Int32)playerNameLen);
+        bw.Write(playerNameBytes);
+        bw.Write(playerType);
+        bw.Write((Int32)userSQ);
+        Managers.Data.Network.SendPacket(bytes, pktSize, Type.ServerPort.LOGIN_PORT);
+    }
+
     GameObject GetIndexToGameObject(int index)
     {
         if (index == 0)

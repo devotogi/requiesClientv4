@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 
 public class OtherPlayerController : PlayController
@@ -7,7 +8,8 @@ public class OtherPlayerController : PlayController
     private float _xRotateMove;
     private float _rotateSpeed = 200.0f;
     private HpController _hpController = null;
-
+    GameObject bow;
+    private TMP_Text _debugText;
     private void LateUpdate()
     {
         if (_hpController != null)
@@ -41,6 +43,14 @@ public class OtherPlayerController : PlayController
                 _usernameText.transform.Rotate(0, 180, 0);
             }
         }
+
+        if (_debugText != null) 
+        {
+            _debugText.text = $"x:{transform.eulerAngles.x},y:{transform.eulerAngles.y},z:{transform.eulerAngles.z}";
+            _debugText.transform.position = new Vector3 (transform.position.x, transform.position.y + 3.0f, transform.position.z);
+            _debugText.transform.LookAt(Camera.main.transform);
+            _debugText.transform.Rotate(0, 180, 0);
+        }
     }
 
     public override void CInit()
@@ -49,6 +59,11 @@ public class OtherPlayerController : PlayController
         _agent = GetComponent<UnityEngine.AI.NavMeshAgent>();
         _agent.updateRotation = false;
         _agent.enabled = true;
+
+        if (_characterType == Type.CharacterType.Archer)
+            bow = FindChildRecursively(transform, "WoodenBow").gameObject;
+
+        _debugText = Managers.Resource.Instantiate("UI/DebugText").transform.GetChild(0).GetComponent<TMP_Text>();
     }
 
     public void Init(Quaternion cameraLocalRotation, GameObject camera)
@@ -159,6 +174,18 @@ public class OtherPlayerController : PlayController
         }
     }
 
+    IEnumerator CoAttack()
+    {
+        _coAttack = true;
+        yield return new WaitForSeconds(0.6f);
+        GameObject arrow = Managers.Resource.Instantiate("Object/Arrow");
+        Vector3 dir = transform.localRotation * Vector3.fwd;
+        arrow.AddComponent<ArrowController>().Init(false, dir, transform.eulerAngles, 0);
+        arrow.transform.position = bow.transform.position;
+        yield return new WaitForSeconds(0.4f);
+        _coAttack = false;
+    }
+
     public override void UpdateAnimation()
     {
         if (_death) return;
@@ -202,13 +229,21 @@ public class OtherPlayerController : PlayController
         transform.position += dirVector3.normalized * Time.deltaTime * _speed;
     }
 
-    public override void UpdateSync(Type.MoveType moveType, Type.State state, Type.Dir dir, Type.Dir mouseDir, Vector3 nowPos, Quaternion quaternion, Vector3 target)
+    public override void UpdateSync(Type.MoveType moveType, Type.State state, Type.Dir dir, Type.Dir mouseDir, Vector3 nowPos, Quaternion quaternion, Vector3 target, Vector3 anagle)
     {
         _moveType = moveType;
         _mouseDir = mouseDir;
         _state = state;
+
+        if (_characterType == Type.CharacterType.Archer && _state == Type.State.ATTACK)
+            StartCoroutine(CoAttack());
+
         _dir = dir;
         _target = target;
+
+        if (anagle != Vector3.zero)
+            transform.eulerAngles = anagle;
+
         GetComponent<UnityEngine.AI.NavMeshAgent>().Warp(new Vector3(nowPos.x, nowPos.y, nowPos.z));
         if (_moveType == Type.MoveType.KeyBoard)
         {
@@ -245,12 +280,12 @@ public class OtherPlayerController : PlayController
 
     public override void Attacked()
     {
-        if (_attackedCoolTime) return;
+        //if (_attackedCoolTime) return;
 
-        if (_coAttacked) return;
+        //if (_coAttacked) return;
 
-        _animator.Play("hit");
-        StartCoroutine(CoAttacked());
+        //_animator.Play("hit");
+        //StartCoroutine(CoAttacked());
     }
 
     public override void Destory()
@@ -264,6 +299,9 @@ public class OtherPlayerController : PlayController
 
         if (_talk)
             Managers.Resource.Destory(_talk.gameObject);
+
+        if (_debugText)
+            Managers.Resource.Destory(_debugText.gameObject);
     }
 
     public override void SetHp(float hp)
@@ -301,7 +339,7 @@ public class OtherPlayerController : PlayController
     {
         if (_level != level)
         {
-            // ·¹º§¾÷ ÀÌÆåÆ®
+            // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ®
             _level = level;
             GameObject bufferEffect = Managers.Resource.Instantiate("Effect/Buff");
             BufferEffectController bf = bufferEffect.AddComponent<BufferEffectController>();

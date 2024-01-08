@@ -5,6 +5,7 @@ using System.IO;
 using TMPro;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 public class PlayerController : PlayController
@@ -25,6 +26,8 @@ public class PlayerController : PlayController
     TMP_Text _levelUi = null;
     StatInfoController _statInfoController = null;
     TMP_InputField _chatInput;
+    float _exp;
+    GameObject bow;
 
     private void LateUpdate()
     {
@@ -103,6 +106,10 @@ public class PlayerController : PlayController
         _statInfoController = playerUi.transform.GetChild(6).GetComponent<StatInfoController>();
         _statInfoController.Init();
         _chatInput = GameObject.FindWithTag("ChatInput").GetComponent<TMP_InputField>();
+        SetExp(_level, _exp, 1000);
+
+        if (_characterType == Type.CharacterType.Archer)
+            bow = FindChildRecursively(transform, "WoodenBow").gameObject;
     }
 
     public void Init(Quaternion cameraLocalRotation, GameObject camera)
@@ -172,6 +179,18 @@ public class PlayerController : PlayController
         if (Input.GetMouseButtonUp(1))
         {
             _state = Type.State.ATTACK;
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+            int layerMask = LayerMask.GetMask("Player", "MainGround", "WALL", "Enemy");
+            if (Physics.Raycast(ray, out hit, Mathf.Infinity, layerMask))
+            {
+                if (EventSystem.current.IsPointerOverGameObject() == false)
+                {
+                    Vector3 target = new Vector3(hit.point.x, 0, hit.point.z);
+                    Vector3 dir = target - new Vector3(transform.position.x, 0, transform.position.z);
+                    transform.rotation = Quaternion.LookRotation(dir.normalized);
+                }
+            }
             return;
         }
 
@@ -447,7 +466,7 @@ public class PlayerController : PlayController
 
         BinaryWriter bw = new BinaryWriter(ms);
         bw.Write((Int16)Type.PacketProtocol.C2S_PLAYERSYNC);
-        bw.Write((Int16)48);
+        bw.Write((Int16)60);
         bw.Write((Int32)PlayerID);
         bw.Write((byte)_state); // 1
         bw.Write((byte)_dir); // 2
@@ -466,9 +485,13 @@ public class PlayerController : PlayController
         bw.Write((float)_target.y); // 4
         bw.Write((float)_target.z); // 43
 
-        bw.Write((byte)_moveType); // 44
+        bw.Write((float)transform.eulerAngles.x);
+        bw.Write((float)transform.eulerAngles.y);
+        bw.Write((float)transform.eulerAngles.z);
 
-        Managers.Data.Network.SendPacket(bytes, 48, Type.ServerPort.NOVICE_PORT);
+        bw.Write((byte)_moveType); // 44 
+
+        Managers.Data.Network.SendPacket(bytes, 60, Type.ServerPort.NOVICE_PORT);
         _movePacketCnt++;
     }
 
@@ -480,7 +503,7 @@ public class PlayerController : PlayController
 
         BinaryWriter bw = new BinaryWriter(ms);
         bw.Write((Int16)Type.PacketProtocol.C2S_MAPSYNC);
-        bw.Write((Int16)48);
+        bw.Write((Int16)60);
         bw.Write((Int32)PlayerID);
         bw.Write((byte)_state); // 2
         bw.Write((byte)_dir); // 2
@@ -499,9 +522,13 @@ public class PlayerController : PlayController
         bw.Write((float)_target.y); // 4
         bw.Write((float)_target.z); // 4
 
+        bw.Write((float)transform.eulerAngles.x);
+        bw.Write((float)transform.eulerAngles.y);
+        bw.Write((float)transform.eulerAngles.z);
+
         bw.Write((byte)_moveType); // 4
 
-        Managers.Data.Network.SendPacket(bytes, 48, Type.ServerPort.NOVICE_PORT);
+        Managers.Data.Network.SendPacket(bytes, 60, Type.ServerPort.NOVICE_PORT);
     }
     public override void MouseMove_Update_Input()
     {
@@ -591,72 +618,87 @@ public class PlayerController : PlayController
 
     IEnumerator CoAttack() 
     {
-        _coAttack = true;
-        yield return new WaitForSeconds(0.2f);
-
-        RaycastHit hit;
-        int playerLayerMask = 1 << LayerMask.NameToLayer("Player");
-        int monsterLayerMask = 1 << LayerMask.NameToLayer("Enemy");
-
-        float sphereRadius = 0.5f;
-        Vector3 attackPos = transform.position + transform.TransformDirection(Vector3.forward) + Vector3.up;
-
-        Collider[] colliders = Physics.OverlapSphere(attackPos, sphereRadius, (monsterLayerMask | playerLayerMask));
-
-        foreach (Collider collider in colliders)
+        if (_characterType == Type.CharacterType.Warrior)
         {
-            int targetLayer = collider.transform.gameObject.layer;
+            _coAttack = true;
+            yield return new WaitForSeconds(0.2f);
 
-            if (targetLayer == 17)
+            RaycastHit hit;
+            int playerLayerMask = 1 << LayerMask.NameToLayer("Player");
+            int monsterLayerMask = 1 << LayerMask.NameToLayer("Enemy");
+
+            float sphereRadius = 0.5f;
+            Vector3 attackPos = transform.position + transform.TransformDirection(Vector3.forward) + Vector3.up;
+
+            Collider[] colliders = Physics.OverlapSphere(attackPos, sphereRadius, (monsterLayerMask | playerLayerMask));
+
+            foreach (Collider collider in colliders)
             {
-                if (collider.gameObject != gameObject)
+                int targetLayer = collider.transform.gameObject.layer;
+
+                if (targetLayer == 17)
                 {
-                    PlayController pc = collider.transform.gameObject.GetComponent<PlayController>();
-                    Int32 otherPlayerId = pc.PlayerID;
+                    if (collider.gameObject != gameObject)
+                    {
+                        PlayController pc = collider.transform.gameObject.GetComponent<PlayController>();
+                        Int32 otherPlayerId = pc.PlayerID;
 
-                    byte[] bytes = new byte[12];
-                    MemoryStream ms = new MemoryStream(bytes);
-                    ms.Position = 0;
+                        byte[] bytes = new byte[12];
+                        MemoryStream ms = new MemoryStream(bytes);
+                        ms.Position = 0;
 
-                    BinaryWriter bw = new BinaryWriter(ms);
-                    bw.Write((Int16)Type.PacketProtocol.C2S_PLAYERATTACK);
-                    bw.Write((Int16)12);
-                    bw.Write((Int32)otherPlayerId);
-                    bw.Write((Int32)_damage);
-                    Managers.Data.Network.SendPacket(bytes, 12, Type.ServerPort.NOVICE_PORT);
+                        BinaryWriter bw = new BinaryWriter(ms);
+                        bw.Write((Int16)Type.PacketProtocol.C2S_PLAYERATTACK);
+                        bw.Write((Int16)12);
+                        bw.Write((Int32)otherPlayerId);
+                        bw.Write((Int32)_damage);
+                        Managers.Data.Network.SendPacket(bytes, 12, Type.ServerPort.NOVICE_PORT);
+                    }
+                }
+                else if (targetLayer == 15)
+                {
+                    if (collider.gameObject != gameObject)
+                    {
+                        float x = collider.transform.position.x;
+                        float y = collider.transform.position.y;
+                        float z = collider.transform.position.z;
+
+                        MonsterController mc = collider.transform.gameObject.GetComponent<MonsterController>();
+                        Int32 monsterId = mc.MonsterId;
+
+                        byte[] bytes = new byte[24];
+                        MemoryStream ms = new MemoryStream(bytes);
+                        ms.Position = 0;
+
+                        BinaryWriter bw = new BinaryWriter(ms);
+                        bw.Write((Int16)Type.PacketProtocol.C2S_MONSTERATTACKED);
+                        bw.Write((Int16)24);
+                        bw.Write((Int32)monsterId);
+                        bw.Write((float)x);
+                        bw.Write((float)y);
+                        bw.Write((float)z);
+                        bw.Write((Int32)_damage);
+                        Managers.Data.Network.SendPacket(bytes, 24, Type.ServerPort.NOVICE_PORT);
+                    }
                 }
             }
-            else if (targetLayer == 15)
-            {
-                if (collider.gameObject != gameObject)
-                {
-                    float x = collider.transform.position.x;
-                    float y = collider.transform.position.y;
-                    float z = collider.transform.position.z;
 
-                    MonsterController mc = collider.transform.gameObject.GetComponent<MonsterController>();
-                    Int32 monsterId = mc.MonsterId;
-
-                    byte[] bytes = new byte[24];
-                    MemoryStream ms = new MemoryStream(bytes);
-                    ms.Position = 0;
-
-                    BinaryWriter bw = new BinaryWriter(ms);
-                    bw.Write((Int16)Type.PacketProtocol.C2S_MONSTERATTACKED);
-                    bw.Write((Int16)24);
-                    bw.Write((Int32)monsterId);
-                    bw.Write((float)x);
-                    bw.Write((float)y);
-                    bw.Write((float)z);
-                    bw.Write((Int32)_damage);
-                    Managers.Data.Network.SendPacket(bytes, 24, Type.ServerPort.NOVICE_PORT);
-                }
-            }
+            yield return new WaitForSeconds(0.8f);
+            _coAttack = false;
+            _dir = Type.Dir.NONE;
         }
-
-        yield return new WaitForSeconds(0.8f);
-        _coAttack = false;
-        _dir = Type.Dir.NONE;
+        else
+        {
+            _coAttack = true;
+            yield return new WaitForSeconds(0.6f);
+            GameObject arrow = Managers.Resource.Instantiate("Object/Arrow");
+            Vector3 dir = transform.localRotation * Vector3.fwd;
+            arrow.AddComponent<ArrowController>().Init(true, dir,transform.eulerAngles, _damage);
+            arrow.transform.position = bow.transform.position;
+            yield return new WaitForSeconds(0.4f);
+            _coAttack = false;
+            _dir = Type.Dir.NONE;
+        }
     }
 
     IEnumerator CoAttacked()
@@ -688,12 +730,12 @@ public class PlayerController : PlayController
 
     public override void Attacked() 
     {
-        if (_attackedCoolTime) return;
+        //if (_attackedCoolTime) return;
 
-        if (_coAttacked) return;
+        //if (_coAttacked) return;
 
-        _animator.Play("hit");
-        StartCoroutine(CoAttacked());
+        //_animator.Play("hit");
+        //StartCoroutine(CoAttacked());
     }
 
     public override void SetHpMax(float hpMax)
@@ -730,5 +772,10 @@ public class PlayerController : PlayController
     internal void SetDamage(float damage)
     {
         _damage = damage;
+    }
+
+    internal void SetExp(int exp)
+    {
+        _exp = exp;
     }
 }

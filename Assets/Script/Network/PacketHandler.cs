@@ -219,24 +219,23 @@ public class PacketHandler
         MemoryStream ms = new MemoryStream(dataPtr.Array, dataPtr.Offset, dataPtr.Count);
         BinaryReader br = new BinaryReader(ms);
         int playerId = br.ReadInt32();
-        int level = br.ReadInt32();
+        int level = br.ReadByte();
         float exp = br.ReadSingle();
         float expMax = br.ReadSingle();
-        float hpMax = br.ReadSingle();
         float hp = br.ReadSingle();
 
         if (playerId == Managers.Data.PlayerController.PlayerID)
         {
             Managers.Data.PlayerController.SetExp(level, exp, expMax);
             Managers.Data.PlayerController.SetHp(hp);
-            Managers.Data.PlayerController.SetHpMax(hpMax);
+            Managers.Data.PlayerController.SetHpMax(hp);
         }
         else
         {
             Managers.Data.PlayerDic.TryGetValue(playerId, out var otherPlayer);
             otherPlayer.SetExp(level, exp, expMax);
             otherPlayer.SetHp(hp);
-            otherPlayer.SetHpMax(hpMax);
+            otherPlayer.SetHpMax(hp);
         }
     }
 
@@ -246,10 +245,15 @@ public class PacketHandler
         BinaryReader br = new BinaryReader(ms);
 
         int monsterId =   br.ReadInt32();
-        int monsterType = br.ReadInt32();
+        Type.MonsterType monsterType = (Type.MonsterType)br.ReadByte();
         float monsterHp = br.ReadSingle();
-        Managers.Data.PlayerController.SetMonsterInfo(monsterId, monsterType, monsterHp);
-        
+        int hitDamage = br.ReadInt32();
+        Managers.Data.PlayerController.SetMonsterInfo(monsterId, (int)monsterType, monsterHp);
+        Managers.Data.MonsterDic.TryGetValue(monsterId, out var otherMonster);  
+        Vector3 damgeSpawnPos = new Vector3(otherMonster.transform.position.x, otherMonster.transform.position.y + 2.0f, otherMonster.transform.position.z);
+        Damage damageText = Managers.Resource.Instantiate("UI/DamageText").GetComponent<Damage>();
+        damageText.Init(damgeSpawnPos, hitDamage);
+
         //Managers.Data.MonsterDic.TryGetValue(monsterId, out var monster);
         //Managers.Data.MonsterDic.Remove(monsterId);
         //monster.GetComponent<MonsterController>().Dead();
@@ -372,20 +376,9 @@ public class PacketHandler
                 conner.Add(new Vector2Int(_x, _z));
             }
 
-            int cnt = br.ReadInt32();
-
             Vector3 pos = new Vector3(x, y, z);
             Vector3 look = new Vector3(lx, ly, lz);
             Vector3 dest = new Vector3(dx, dy, dz);
-
-            Vector3 damgeSpawnPos = new Vector3(x, y+ 2.0f, z);
-
-            for (int i = 0; i < cnt; i++)
-            {
-                int damge = br.ReadInt32();
-                Damage damageText = Managers.Resource.Instantiate("UI/DamageText").GetComponent<Damage>();
-                damageText.Init(damgeSpawnPos, damge);
-            }
 
             Managers.Data.MonsterDic.TryGetValue(monsterId, out var monster);
             monster.GetComponent<MonsterController>().Sync(monsterState, pos, hp, look, dest, conner);
@@ -750,13 +743,14 @@ public class PacketHandler
             cameraPosGo.GetComponent<FakeCameraPos>().Init(playerGo);
 
             opc.Init(quaternion, cameraPosGo.transform.GetChild(0).gameObject);
-            opc.UpdateSync(moveType, state, dir, mouseDir, nowPos, quaternion, target);
+            opc.UpdateSync(moveType, state, dir, mouseDir, nowPos, quaternion, target,Vector3.zero);
             opc.SetHpMax(hp);
             opc.SetHpMax(mp);
             opc.SetHp(hp);
             opc.SetMp(mp);
             opc.SetLevel(level);
             opc.SetUserName(username);
+            opc.SetCharacterType(playerType);
         }
         catch (Exception e)
         {
@@ -847,12 +841,13 @@ public class PacketHandler
             cameraPosGo.GetComponent<FakeCameraPos>().Init(playerGo);;
 
             opc.Init(cameraLocalRotation, cameraPosGo.transform.GetChild(0).gameObject);
-            opc.UpdateSync(moveType, state, dir, mouseDir,startPos, cameraLocalRotation, target);
+            opc.UpdateSync(moveType, state, dir, mouseDir,startPos, cameraLocalRotation, target,Vector3.zero);
             opc.SetHpMax(hp);
             opc.SetHpMax(mp);
             opc.SetHp(hp);
             opc.SetMp(mp);
             opc.SetUserName(username);
+            opc.SetCharacterType(type);
         }
     }
 
@@ -872,6 +867,7 @@ public class PacketHandler
         try
         {
             Type.State state = (Type.State)br.ReadByte();
+            Debug.Log(state);
             Type.Dir dir = (Type.Dir)br.ReadByte();
             Type.Dir mouseDir = (Type.Dir)br.ReadByte();
             float x = br.ReadSingle();
@@ -887,11 +883,15 @@ public class PacketHandler
             float ty = br.ReadSingle();
             float tz = br.ReadSingle();
             Vector3 target = new Vector3(tx, ty, tz);
+            float ex = br.ReadSingle();
+            float ey = br.ReadSingle();
+            float ez = br.ReadSingle();
+            Vector3 anagle = new Vector3(ex, ey, ez);
             Type.MoveType moveType = (Type.MoveType)br.ReadByte();
-
+            
             Managers.Data.PlayerDic.TryGetValue(playerId, out var opc);
             if (opc != null)
-                opc.UpdateSync(moveType, state, dir, mouseDir, nowPos, quaternion,target);
+                opc.UpdateSync(moveType, state, dir, mouseDir, nowPos, quaternion,target, anagle);
         }
         catch (Exception e)
         {
@@ -926,7 +926,9 @@ public class PacketHandler
         int userNameSize = br.ReadByte();
         byte[] userNameBytes = br.ReadBytes(userNameSize);
         string username = Encoding.Unicode.GetString(userNameBytes);
-        Type.CharacterType type = (Type.CharacterType) br.ReadByte();
+        Type.CharacterType type = (Type.CharacterType)br.ReadByte();
+        int exp = br.ReadInt32();
+
         GameObject playerGo;
         if (type == Type.CharacterType.Warrior)
         {
@@ -947,7 +949,8 @@ public class PacketHandler
         pc.SetSpeed(speed);
         pc.SetDamage(damage);
         pc.SetUserName(username);
-
+        pc.SetExp(exp);
+        pc.SetCharacterType(type);
         Managers.Data.PlayerController = pc;
         Managers.Data.PlayerDic.Add(pc.PlayerID, pc);
 
