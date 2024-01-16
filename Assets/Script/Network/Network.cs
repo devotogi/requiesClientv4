@@ -10,9 +10,12 @@ using UnityEngine;
 public class Network : MonoBehaviour
 {
     private Dictionary<Type.ServerPort, TCPConnector> _connectors = new Dictionary<Type.ServerPort, TCPConnector>();
+    private Dictionary<Type.ServerPort, Thread> _recvThreads = new Dictionary<Type.ServerPort, Thread>();
     private PacketHandler _packetHandler = new PacketHandler();
     private const int _recvBufferSize = 4096 * 10;
     private byte[] _recvBuffer = new byte[_recvBufferSize];
+    public Type.ServerPort NowPort;
+    private static Dictionary<Type.ServerPort, bool> _threadFlags = new Dictionary<Type.ServerPort, bool>();
 
     public string LocalIp
     {
@@ -37,22 +40,42 @@ public class Network : MonoBehaviour
 
     public void ServerConnect(Type.ServerPort port)
     {
-        if (_connectors[port].ConnectTo(Type.IP, (int)port))
+        if (_connectors[port].ConnectTo(Type.IP, (int)port))    
         {
-            new Thread(new ThreadStart(() => TCPRecvProc(port))).Start();
+            NowPort = port;
+            Thread recvT = new Thread(new ThreadStart(() => TCPRecvProc(port)));
+            recvT.Start();
         }
+    }
+
+    public void ServerDisConnect() 
+    {
+        _threadFlags[NowPort] = false;
+        _connectors[NowPort].DisConnectTo();
     }
 
     void Init()
     {
         _connectors.Add(Type.ServerPort.LOGIN_PORT, new TCPConnector());
         _connectors.Add(Type.ServerPort.NOVICE_PORT, new TCPConnector());
+        _connectors.Add(Type.ServerPort.VILLAGE_PORT, new TCPConnector());
         ServerConnect(Type.ServerPort.LOGIN_PORT);
     }
 
     public void SendPacket(byte[] buffer, int sendSize, Type.ServerPort port)
     {
-        _connectors[port].ConnectSocket.Send(buffer, sendSize, SocketFlags.None);
+        try
+        {
+            if (port != Type.ServerPort.LOGIN_PORT)
+                port = NowPort;
+            
+            if (_connectors[port].ConnectSocket.Connected)
+                _connectors[port].ConnectSocket.Send(buffer, sendSize, SocketFlags.None);
+        }
+        catch (Exception e) 
+        {
+            Debug.Log($"Port:{port} {e}" );
+        }
     }
 
     void Update()
@@ -70,21 +93,24 @@ public class Network : MonoBehaviour
             }
         }
     }
-
+    
     private void TCPRecvProc(Type.ServerPort port)
     {
+        _threadFlags[port] = true;
+
         int recvSize = 0;
         int readPos = 0;
         int writePos = 0;
         try
         {
-            while (true)
+            while (_threadFlags[port])
             {
                 recvSize = _connectors[port].ConnectSocket.Receive(_recvBuffer, writePos, _recvBuffer.Length - writePos, SocketFlags.None);
 
                 if (recvSize < 1)
                 {
-                    _connectors[port].ConnectSocket.Close();
+                    // _connectors[port].ConnectSocket.Close();
+                    Debug.Log($"{port} Recv Thread가 종료되었음");
                     break;
                 }
 
@@ -131,7 +157,8 @@ public class Network : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogException(e);
+          Debug.LogException(e);
+          Debug.Log($"{port} Err Recv Thread가 종료되었음");
         }
     }
 }

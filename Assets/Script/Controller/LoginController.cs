@@ -37,7 +37,6 @@ public class LoginController : MonoBehaviour
             return;
         }
 
-
         byte[] bytes = new byte[1000];
         MemoryStream ms = new MemoryStream(bytes);
         ms.Position = 0;

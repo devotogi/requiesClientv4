@@ -13,4 +13,12 @@ public class DataManager
     public PlayerController PlayerController { get { return _playerController; } set { _playerController = value; } }
     public Dictionary<int, PlayController> PlayerDic { get { return _playDic; } }
     public Dictionary<int, GameObject> MonsterDic { get { return _monsterDic; } }
+
+    public void Clear() 
+    {
+        Managers.Resource.Destory(PlayerController.gameObject);
+        PlayerController = null;
+        PlayerDic.Clear();
+        MonsterDic.Clear();
+    }
 }

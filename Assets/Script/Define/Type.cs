@@ -52,6 +52,7 @@ public class Type
         C2S_DELETECHARACTER,
         C2S_GAMEPLAY,
         S2C_SERVERMOVE,
+        C2S_SERVER_MOVE
     }
 
     public static string IP { get { return "58.236.130.58"; } }
@@ -62,6 +63,7 @@ public class Type
     {
         NOVICE_PORT = 30002,
         LOGIN_PORT = 30003,
+        VILLAGE_PORT = 30004,
     }
     public enum State : byte
     {

@@ -135,15 +135,19 @@ public class PacketHandler
     {
         MemoryStream ms = new MemoryStream(dataPtr.Array, dataPtr.Offset, dataPtr.Count);
         BinaryReader br = new BinaryReader(ms);
-        Type.ServerPort port = (Type.ServerPort)br.ReadInt32();
+        Type.ServerPort port = (Type.ServerPort)br.ReadInt16();
         int playerSQ = br.ReadInt32();
 
         Managers.Data.playerSQ = playerSQ;
 
         if (port == Type.ServerPort.NOVICE_PORT)
         {
-            Managers.Data.Network.ServerConnect(port);
             LoadingSceneController.Instance.LoadScene("NoviceFieldScene");
+
+        }
+        else if (port == Type.ServerPort.VILLAGE_PORT)
+        {
+            LoadingSceneController.Instance.LoadScene("VillageScene");
         }
     }
 
@@ -952,7 +956,9 @@ public class PacketHandler
         pc.SetExp(exp);
         pc.SetCharacterType(type);
         Managers.Data.PlayerController = pc;
-        Managers.Data.PlayerDic.Add(pc.PlayerID, pc);
+
+        if (!Managers.Data.PlayerDic.ContainsKey(pc.PlayerID))
+            Managers.Data.PlayerDic.Add(pc.PlayerID, pc);
 
         GameObject cameraPosGo = Managers.Resource.Instantiate("Camera/CameraPos");
         cameraPosGo.GetComponent<CameraPos>().Init(playerGo);

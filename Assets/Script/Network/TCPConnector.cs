@@ -20,6 +20,7 @@ public class TCPConnector
     {
         try
         {
+            _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             _ipEndPoint = new IPEndPoint(IPAddress.Parse(ip), port);
             _socket.Connect(_ipEndPoint);
         }
@@ -31,4 +32,19 @@ public class TCPConnector
         return true;
     }
 
+    public bool DisConnectTo()
+    {
+        try
+        {
+            _socket.Shutdown(SocketShutdown.Both);
+            _socket.Close();
+        }
+        catch (Exception e)
+        {
+            Debug.LogException(e);
+            return false;
+        }
+
+        return true;
+    }
 }
