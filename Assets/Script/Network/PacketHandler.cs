@@ -490,6 +490,11 @@ public class PacketHandler
 
             Managers.Data.MonsterDic.Add(monsterId, mo);
             mc.GetComponent<MonsterController>().Sync(monsterState, pos, hp, look, dest, conner);
+            GameObject monsterMarker = Managers.Resource.Instantiate("Object/MonsterMarker", mc.transform);
+            monsterMarker.transform.position = new Vector3(monsterMarker.transform.position.x, 15, monsterMarker.transform.position.z);
+            monsterMarker.transform.parent = null;
+            monsterMarker.transform.localScale = new Vector3(0.2f, 1, 0.2f);
+            monsterMarker.transform.parent = mc.transform;
         }
     }
 
@@ -554,6 +559,11 @@ public class PacketHandler
 
         Managers.Data.MonsterDic.Add(monsterId, mo);
         mc.GetComponent<MonsterController>().Sync(monsterState, pos, hp, look, dest, conner);
+        GameObject monsterMarker = Managers.Resource.Instantiate("Object/MonsterMarker", mc.transform);
+        monsterMarker.transform.position = new Vector3(monsterMarker.transform.position.x, 15, monsterMarker.transform.position.z);
+        monsterMarker.transform.parent = null;
+        monsterMarker.transform.localScale = new Vector3(0.2f, 1, 0.2f);
+        monsterMarker.transform.parent = mc.transform;
         //mc.HPC = hpc;
     }
 
@@ -755,6 +765,9 @@ public class PacketHandler
             opc.SetLevel(level);
             opc.SetUserName(username);
             opc.SetCharacterType(playerType);
+
+            GameObject playerMarker = Managers.Resource.Instantiate("Object/OtherPlayerMarker", playerGo.transform);
+            playerMarker.transform.position = new Vector3(playerGo.transform.position.x, 5, playerGo.transform.position.z);
         }
         catch (Exception e)
         {
@@ -852,6 +865,8 @@ public class PacketHandler
             opc.SetMp(mp);
             opc.SetUserName(username);
             opc.SetCharacterType(type);
+            GameObject playerMarker = Managers.Resource.Instantiate("Object/OtherPlayerMarker", playerGo.transform);
+            playerMarker.transform.position = new Vector3(playerGo.transform.position.x, 5, playerGo.transform.position.z);
         }
     }
 
@@ -932,7 +947,7 @@ public class PacketHandler
         string username = Encoding.Unicode.GetString(userNameBytes);
         Type.CharacterType type = (Type.CharacterType)br.ReadByte();
         int exp = br.ReadInt32();
-
+   
         GameObject playerGo;
         if (type == Type.CharacterType.Warrior)
         {
@@ -942,7 +957,6 @@ public class PacketHandler
         {
             playerGo = Managers.Resource.Instantiate("Player/Archer");
         }
-
         playerGo.name = "player";
         PlayerController pc = playerGo.AddComponent<PlayerController>();
         pc.SetAgentPos(new Vector3(x, y, z));
@@ -964,6 +978,12 @@ public class PacketHandler
         cameraPosGo.GetComponent<CameraPos>().Init(playerGo);
         cameraPosGo.transform.GetChild(0).gameObject.AddComponent<CameraController>().Init(playerGo);
         pc.Init(quaternion, cameraPosGo.transform.GetChild(0).gameObject);
+
+        GameObject mapCamera = Managers.Resource.Instantiate("Camera/MapCamera", playerGo.transform);
+        mapCamera.transform.position = new Vector3(playerGo.transform.position.x, 20, playerGo.transform.position.z);
+
+        GameObject playerMarker = Managers.Resource.Instantiate("Object/PlayerMarker", playerGo.transform);
+        playerMarker.transform.position = new Vector3(playerGo.transform.position.x, 5, playerGo.transform.position.z);
     }
     private void PacketHandler_S2C_CREATECHARACTER(ArraySegment<byte> dataPtr, int dataSize)
     {
