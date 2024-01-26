@@ -730,8 +730,7 @@ public class PacketHandler
             float hp = br.ReadSingle();
             float mp = br.ReadSingle();
             int level = br.ReadByte();
-            int usernameSIze = br.ReadByte();
-            byte[] usernameBytes = br.ReadBytes(usernameSIze);
+            byte[] usernameBytes = br.ReadBytes(30);
             string username = Encoding.Unicode.GetString(usernameBytes);
             Type.CharacterType playerType = (Type.CharacterType)br.ReadByte();
 
@@ -942,8 +941,7 @@ public class PacketHandler
         int level = br.ReadByte();
         float speed = br.ReadSingle();
         float damage = br.ReadSingle();
-        int userNameSize = br.ReadByte();
-        byte[] userNameBytes = br.ReadBytes(userNameSize);
+        byte[] userNameBytes = br.ReadBytes(30);
         string username = Encoding.Unicode.GetString(userNameBytes);
         Type.CharacterType type = (Type.CharacterType)br.ReadByte();
         int exp = br.ReadInt32();
@@ -979,9 +977,9 @@ public class PacketHandler
         cameraPosGo.transform.GetChild(0).gameObject.AddComponent<CameraController>().Init(playerGo);
         pc.Init(quaternion, cameraPosGo.transform.GetChild(0).gameObject);
 
-        GameObject mapCamera = Managers.Resource.Instantiate("Camera/MapCamera", playerGo.transform);
-        mapCamera.transform.position = new Vector3(playerGo.transform.position.x, 20, playerGo.transform.position.z);
-
+        GameObject mapCamera = Managers.Resource.Instantiate("Camera/MapCamera");
+        MapCameraController mapCameraController = mapCamera.AddComponent<MapCameraController>();
+        mapCameraController.playerGo = playerGo;
         GameObject playerMarker = Managers.Resource.Instantiate("Object/PlayerMarker", playerGo.transform);
         playerMarker.transform.position = new Vector3(playerGo.transform.position.x, 5, playerGo.transform.position.z);
     }

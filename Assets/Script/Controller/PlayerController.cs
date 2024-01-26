@@ -466,8 +466,8 @@ public class PlayerController : PlayController
 
         BinaryWriter bw = new BinaryWriter(ms);
         bw.Write((Int16)Type.PacketProtocol.C2S_PLAYERSYNC);
-        bw.Write((Int16)60);
-        bw.Write((Int32)PlayerID);
+        bw.Write((Int16)64);
+        bw.Write((Int32)PlayerID); // 4
         bw.Write((byte)_state); // 1
         bw.Write((byte)_dir); // 2
         bw.Write((byte)_mouseDir); // 3
@@ -491,7 +491,7 @@ public class PlayerController : PlayController
 
         bw.Write((byte)_moveType); // 44 
 
-        Managers.Data.Network.SendPacket(bytes, 60, Type.ServerPort.NOVICE_PORT);
+        Managers.Data.Network.SendPacket(bytes, 64, Type.ServerPort.NOVICE_PORT);
         _movePacketCnt++;
     }
 
@@ -503,7 +503,7 @@ public class PlayerController : PlayController
 
         BinaryWriter bw = new BinaryWriter(ms);
         bw.Write((Int16)Type.PacketProtocol.C2S_MAPSYNC);
-        bw.Write((Int16)60);
+        bw.Write((Int16)64);
         bw.Write((Int32)PlayerID);
         bw.Write((byte)_state); // 2
         bw.Write((byte)_dir); // 2
@@ -528,7 +528,7 @@ public class PlayerController : PlayController
 
         bw.Write((byte)_moveType); // 4
 
-        Managers.Data.Network.SendPacket(bytes, 60, Type.ServerPort.NOVICE_PORT);
+        Managers.Data.Network.SendPacket(bytes, 64, Type.ServerPort.NOVICE_PORT);
     }
     public override void MouseMove_Update_Input()
     {
