@@ -112,5 +112,4 @@ public class LoadingSceneController : MonoBehaviour
             gameObject.SetActive(false);
         }
     }
-
 }

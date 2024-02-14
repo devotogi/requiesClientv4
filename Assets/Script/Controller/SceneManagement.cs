@@ -46,7 +46,7 @@ public class SceneManagement : MonoBehaviour
         Managers.Data.Network.ServerConnect(Type.ServerPort.VILLAGE_PORT);
 
         GameObject playerUi = Managers.Resource.Instantiate("UI/PlayerUI");
-
+        playerUi.name = "playerUI";
         byte[] bytes = new byte[1000];
         MemoryStream ms = new MemoryStream(bytes);
         ms.Position = 0;
@@ -63,7 +63,7 @@ public class SceneManagement : MonoBehaviour
         Managers.Data.Network.ServerConnect(Type.ServerPort.NOVICE_PORT);
 
         GameObject playerUi = Managers.Resource.Instantiate("UI/PlayerUI");
-
+        playerUi.name = "playerUI";
         byte[] bytes = new byte[1000];
         MemoryStream ms = new MemoryStream(bytes);
         ms.Position = 0;

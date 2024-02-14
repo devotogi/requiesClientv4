@@ -174,6 +174,20 @@ public class OtherPlayerController : PlayController
         }
     }
 
+    internal void ExcuteSkill()
+    {
+        switch (_characterType)
+        {
+            case Type.CharacterType.Warrior:
+                StartCoroutine(CoWarriorQSkill());
+                break;
+
+            case Type.CharacterType.Archer:
+                StartCoroutine(CoArcherQSkill());
+                break;
+        }
+    }
+
     IEnumerator CoAttack()
     {
         _coAttack = true;
@@ -206,6 +220,10 @@ public class OtherPlayerController : PlayController
             case Type.State.ATTACK:
                 _animator.Play("attack");
                 break;
+
+            case Type.State.ATTACK2:
+                _animator.Play("skillAttack");
+                break;
         } 
     }
 
@@ -237,6 +255,12 @@ public class OtherPlayerController : PlayController
 
         if (_characterType == Type.CharacterType.Archer && _state == Type.State.ATTACK)
             StartCoroutine(CoAttack());
+        
+        if (_characterType == Type.CharacterType.Archer && _state == Type.State.ATTACK2)
+            StartCoroutine(CoArcherESkill());
+
+        if (_characterType == Type.CharacterType.Warrior && _state == Type.State.ATTACK2)
+            StartCoroutine(CoWarriorESkill());
 
         _dir = dir;
         _target = target;
@@ -270,6 +294,52 @@ public class OtherPlayerController : PlayController
         _coAttacked = false;
         yield return new WaitForSeconds(3f);
         _attackedCoolTime = false;
+    }
+    IEnumerator CoArcherQSkill()
+    {
+        GameObject effect = Managers.Resource.Instantiate("Effect/Meteor");
+        effect.transform.position = transform.position;
+        yield return new WaitForSeconds(1.0f);
+        yield return new WaitForSeconds(1.0f);
+        yield return new WaitForSeconds(1.0f);
+        yield return new WaitForSeconds(1.0f);
+        Managers.Resource.Destory(effect);
+    }
+
+    IEnumerator CoWarriorQSkill()
+    {
+        GameObject effect = Managers.Resource.Instantiate("Effect/FreezeCircle");
+        effect.transform.position = transform.position;
+        yield return new WaitForSeconds(1.0f);
+        yield return new WaitForSeconds(1.0f);
+        yield return new WaitForSeconds(1.0f);
+        yield return new WaitForSeconds(1.0f);
+        Managers.Resource.Destory(effect);
+    }
+    IEnumerator CoWarriorESkill()
+    {
+        _coAttack = true;
+        yield return new WaitForSeconds(1.0f);
+        GameObject effect = Managers.Resource.Instantiate("Effect/Holyhit");
+        Vector3 effectD = transform.TransformDirection(Vector3.forward * 2);
+        Vector3 pos = transform.position + effectD;
+        effect.transform.position = new Vector3(pos.x, pos.y + 1.0f, pos.z);
+        yield return new WaitForSeconds(1.0f);
+        Managers.Resource.Destory(effect);
+        _coAttack = false;
+    }
+
+    IEnumerator CoArcherESkill()
+    {
+        _coAttack = true;
+        yield return new WaitForSeconds(0.6f);
+        GameObject arrow = Managers.Resource.Instantiate("Effect/MagicArrow");
+        Vector3 dir = transform.localRotation * Vector3.fwd;
+        arrow.AddComponent<SkillArrowController>().Init(false, dir, transform.eulerAngles, 0);
+        arrow.transform.position = bow.transform.position;
+        yield return new WaitForSeconds(0.4f);
+        _coAttack = false;
+        yield return new WaitForSeconds(2.0f);
     }
 
     IEnumerator CoDeath()
@@ -325,9 +395,6 @@ public class OtherPlayerController : PlayController
     {
  
     }
-
-
-
 
     public override void Death()
     {

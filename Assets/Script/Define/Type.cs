@@ -52,7 +52,8 @@ public class Type
         C2S_DELETECHARACTER,
         C2S_GAMEPLAY,
         S2C_SERVERMOVE,
-        C2S_SERVER_MOVE
+        C2S_SERVER_MOVE,
+        C2S_PLAYERSKILLSYNC,
     }
 
     public static string IP { get { return "58.236.130.58"; } }
@@ -76,6 +77,7 @@ public class Type
         COOL_TIME,
         PATROL,
         TRACE,
+        ATTACK2,
     }
     public enum Dir : byte
     {

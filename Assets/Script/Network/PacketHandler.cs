@@ -128,6 +128,26 @@ public class PacketHandler
             case Type.PacketProtocol.S2C_SERVERMOVE:
                 PacketHandler_S2C_SERVERMOVE(dataPtr, dataSize);
                 break;
+
+            case Type.PacketProtocol.C2S_PLAYERSKILLSYNC:
+                PacketHandler_C2S_PLAYERSKILLSYNC(dataPtr, dataSize);
+                break;
+        }
+    }
+
+    private void PacketHandler_C2S_PLAYERSKILLSYNC(ArraySegment<byte> dataPtr, int dataSize)
+    {
+        MemoryStream ms = new MemoryStream(dataPtr.Array, dataPtr.Offset, dataPtr.Count);
+        BinaryReader br = new BinaryReader(ms);
+        int playerSQ = br.ReadInt32();
+
+        if (Managers.Data.PlayerController.PlayerID == playerSQ)
+            return;
+        else
+        {
+            Managers.Data.PlayerDic.TryGetValue(playerSQ, out var pc);
+            OtherPlayerController opc = (OtherPlayerController)pc;
+            opc.ExcuteSkill();
         }
     }
 
@@ -976,6 +996,7 @@ public class PacketHandler
         cameraPosGo.GetComponent<CameraPos>().Init(playerGo);
         cameraPosGo.transform.GetChild(0).gameObject.AddComponent<CameraController>().Init(playerGo);
         pc.Init(quaternion, cameraPosGo.transform.GetChild(0).gameObject);
+        GameObject.Find("playerUI").GetComponent<PlayerUIController>().Init(type);
 
         GameObject mapCamera = Managers.Resource.Instantiate("Camera/MapCamera");
         MapCameraController mapCameraController = mapCamera.AddComponent<MapCameraController>();

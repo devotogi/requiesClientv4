@@ -28,7 +28,8 @@ public class PlayerController : PlayController
     TMP_InputField _chatInput;
     float _exp;
     GameObject bow;
-
+    private bool skill1CoolTime = false;
+    private bool skill2CoolTime = false;
     private void LateUpdate()
     {
         if (_talk != null)
@@ -78,6 +79,14 @@ public class PlayerController : PlayController
 
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(attackPos, sphereRadius);
+        Gizmos.color = Color.red;
+        // Gizmos.DrawWireSphere(transform.position, 4.5f);
+
+        Vector3 effectD = transform.TransformDirection(Vector3.forward * 2);
+        Vector3 pos = transform.position + effectD;
+        Vector3 effectPos = new Vector3(pos.x, pos.y + 1.0f, pos.z);
+        sphereRadius = 3.5f;
+        Gizmos.DrawWireSphere(effectPos, sphereRadius);
     }
 
     IEnumerator movePacketCount()
@@ -96,7 +105,7 @@ public class PlayerController : PlayController
         _agent = GetComponent<UnityEngine.AI.NavMeshAgent>();
         _agent.updateRotation = false;
         _agent.enabled = true;
-        GameObject playerUi = GameObject.Find("PlayerUI(Clone)");
+        GameObject playerUi = GameObject.FindGameObjectWithTag("Finish");
         _hpMpController = GameObject.FindGameObjectWithTag("HpMp").GetComponent<HpMpController>();
         _expController = playerUi.transform.GetChild(1).GetComponent<ExpController>();
         _expController.Init();
@@ -146,7 +155,7 @@ public class PlayerController : PlayController
             return;
         }
 
-        if (_death) return;
+        if (_death) return;;
 
         if (_coAttacked == true)
             return;
@@ -154,7 +163,7 @@ public class PlayerController : PlayController
         if (_coAttack == false)
             _state = Type.State.IDLE;
 
-        if (_state == Type.State.ATTACK)
+        if (_state == Type.State.ATTACK || _state == Type.State.ATTACK2)
             return;
 
         if (_movePacketCnt > 8)
@@ -191,6 +200,17 @@ public class PlayerController : PlayController
                     transform.rotation = Quaternion.LookRotation(dir.normalized);
                 }
             }
+            return;
+        }
+
+        if (skill1CoolTime == false && Input.GetKeyDown(KeyCode.Q))
+        {
+            QSkill();
+            return;
+        }
+        else if (skill2CoolTime == false && Input.GetKeyDown(KeyCode.E))
+        {
+            ESkill();
             return;
         }
 
@@ -455,6 +475,9 @@ public class PlayerController : PlayController
             case Type.State.ATTACK:
                 _animator.Play("attack");
                 break;
+            case Type.State.ATTACK2:
+                _animator.Play("skillAttack");
+                break;
         }
     }
 
@@ -491,7 +514,7 @@ public class PlayerController : PlayController
 
         bw.Write((byte)_moveType); // 44 
 
-        Managers.Data.Network.SendPacket(bytes, 64, Type.ServerPort.NOVICE_PORT);
+        Managers.Data.Network.SendPacket(bytes, 64, Type.ServerPort.NOVICE_PORT);   
         _movePacketCnt++;
     }
 
@@ -725,8 +748,198 @@ public class PlayerController : PlayController
         bw.Write((Int16)Type.PacketProtocol.C2S_PLAYERESPAWN);
         bw.Write((Int16)4);
         Managers.Data.Network.SendPacket(bytes, 4, Type.ServerPort.NOVICE_PORT);
-
     }
+
+    private void SyncQSkill() 
+    {
+        byte[] bytes = new byte[100];
+        MemoryStream ms = new MemoryStream(bytes);
+        ms.Position = 0;
+        BinaryWriter bw = new BinaryWriter(ms);
+        bw.Write((Int16)Type.PacketProtocol.C2S_PLAYERSKILLSYNC);
+        bw.Write((Int16)8);
+        bw.Write((Int32)Managers.Data.PlayerController.PlayerID);
+        Managers.Data.Network.SendPacket(bytes, 8, Type.ServerPort.NOVICE_PORT);
+    }
+
+    private void QSkill() 
+    {
+        switch (_characterType)
+        {
+            case Type.CharacterType.Warrior:
+                SyncQSkill();
+                StartCoroutine(CoWarriorQSkill());
+                GameObject.FindGameObjectWithTag("Finish").GetComponent<PlayerUIController>().SetQCoolTime(14);
+                break;
+
+            case Type.CharacterType.Archer:
+                SyncQSkill();
+                StartCoroutine(CoArcherQSkill());
+                GameObject.FindGameObjectWithTag("Finish").GetComponent<PlayerUIController>().SetQCoolTime(14);
+                break;
+        }
+    }
+
+    private void ESkill() 
+    {
+        switch (_characterType)
+        {
+            case Type.CharacterType.Warrior:
+                StartCoroutine(CoWarriorESkill());
+                GameObject.FindGameObjectWithTag("Finish").GetComponent<PlayerUIController>().SetECoolTime(12);
+                break;
+
+            case Type.CharacterType.Archer:
+                StartCoroutine(CoArcherESkill());
+                GameObject.FindGameObjectWithTag("Finish").GetComponent<PlayerUIController>().SetECoolTime(11);
+                break;
+        }
+    }
+
+    IEnumerator CoWarriorQSkill() 
+    {
+        skill1CoolTime = true;
+        GameObject effect = Managers.Resource.Instantiate("Effect/FreezeCircle");
+        effect.transform.position = transform.position;
+        yield return new WaitForSeconds(1.0f);
+        QSkillAttack(effect.transform.position);
+        yield return new WaitForSeconds(1.0f);
+        QSkillAttack(effect.transform.position);
+        yield return new WaitForSeconds(1.0f);
+        QSkillAttack(effect.transform.position);
+        yield return new WaitForSeconds(1.0f);
+        Managers.Resource.Destory(effect);
+        yield return new WaitForSeconds(10.0f);
+        skill1CoolTime = false;
+    }
+
+    void QSkillAttack(Vector3 skillPos) 
+    {
+        int monsterLayerMask = 1 << LayerMask.NameToLayer("Enemy");
+        Collider[] colliders = Physics.OverlapSphere(skillPos, 4.5f, monsterLayerMask);
+
+        foreach (Collider collider in colliders)
+        {
+            int targetLayer = collider.transform.gameObject.layer;
+            if (targetLayer == 15)
+            {
+                if (collider.gameObject != gameObject)
+                {
+                    float x = collider.transform.position.x;
+                    float y = collider.transform.position.y;
+                    float z = collider.transform.position.z;
+
+                    MonsterController mc = collider.transform.gameObject.GetComponent<MonsterController>();
+                    Int32 monsterId = mc.MonsterId;
+
+                    byte[] bytes = new byte[24];
+                    MemoryStream ms = new MemoryStream(bytes);
+                    ms.Position = 0;
+
+                    BinaryWriter bw = new BinaryWriter(ms);
+                    bw.Write((Int16)Type.PacketProtocol.C2S_MONSTERATTACKED);
+                    bw.Write((Int16)24);
+                    bw.Write((Int32)monsterId);
+                    bw.Write((float)x);
+                    bw.Write((float)y);
+                    bw.Write((float)z);
+                    bw.Write((Int32)_damage);
+                    Managers.Data.Network.SendPacket(bytes, 24, Type.ServerPort.NOVICE_PORT);
+                }
+            }
+        }
+    }
+
+    IEnumerator CoArcherQSkill()
+    {
+        skill1CoolTime = true;
+        GameObject effect = Managers.Resource.Instantiate("Effect/Meteor");
+        effect.transform.position = transform.position;
+        yield return new WaitForSeconds(1.0f);
+        QSkillAttack(effect.transform.position);
+        yield return new WaitForSeconds(1.0f);
+        QSkillAttack(effect.transform.position);
+        yield return new WaitForSeconds(1.0f);
+        QSkillAttack(effect.transform.position);
+        yield return new WaitForSeconds(1.0f);
+        Managers.Resource.Destory(effect);
+        yield return new WaitForSeconds(10.0f);
+        skill1CoolTime = false;
+    }
+
+    IEnumerator CoWarriorESkill()
+    {
+        _state = Type.State.ATTACK2;
+        _coAttack = true;
+        skill2CoolTime = true;
+        yield return new WaitForSeconds(1.0f);
+        GameObject effect = Managers.Resource.Instantiate("Effect/Holyhit");
+        Vector3 effectD = transform.TransformDirection(Vector3.forward*2);
+        Vector3 pos = transform.position + effectD;
+        effect.transform.position = new Vector3(pos.x,pos.y + 1.0f,pos.z);
+        ESkillAttack(effect.transform.position);
+        yield return new WaitForSeconds(1.0f);
+        Managers.Resource.Destory(effect);
+        _dir = Type.Dir.NONE;
+        _coAttack = false;
+        yield return new WaitForSeconds(10.0f);
+        skill2CoolTime = false;
+    }
+
+    IEnumerator CoArcherESkill()
+    {
+        _state = Type.State.ATTACK2;
+        _coAttack = true;
+        skill2CoolTime = true;
+        yield return new WaitForSeconds(0.6f);
+        GameObject arrow = Managers.Resource.Instantiate("Effect/MagicArrow");
+        Vector3 dir = transform.localRotation * Vector3.fwd;
+        arrow.AddComponent<SkillArrowController>().Init(true, dir, transform.eulerAngles, _damage);
+        arrow.transform.position = bow.transform.position;
+        yield return new WaitForSeconds(0.4f);
+        _coAttack = false;
+        _dir = Type.Dir.NONE;
+        yield return new WaitForSeconds(10.0f);
+        skill2CoolTime = false;
+    }
+
+    void ESkillAttack(Vector3 skillPos)
+    {
+        int monsterLayerMask = 1 << LayerMask.NameToLayer("Enemy");
+        Collider[] colliders = Physics.OverlapSphere(skillPos, 2.0f, monsterLayerMask);
+
+        foreach (Collider collider in colliders)
+        {
+            int targetLayer = collider.transform.gameObject.layer;
+            if (targetLayer == 15)
+            {
+                if (collider.gameObject != gameObject)
+                {
+                    float x = collider.transform.position.x;
+                    float y = collider.transform.position.y;
+                    float z = collider.transform.position.z;
+
+                    MonsterController mc = collider.transform.gameObject.GetComponent<MonsterController>();
+                    Int32 monsterId = mc.MonsterId;
+
+                    byte[] bytes = new byte[24];
+                    MemoryStream ms = new MemoryStream(bytes);
+                    ms.Position = 0;
+
+                    BinaryWriter bw = new BinaryWriter(ms);
+                    bw.Write((Int16)Type.PacketProtocol.C2S_MONSTERATTACKED);
+                    bw.Write((Int16)24);
+                    bw.Write((Int32)monsterId);
+                    bw.Write((float)x);
+                    bw.Write((float)y);
+                    bw.Write((float)z);
+                    bw.Write((Int32)_damage);
+                    Managers.Data.Network.SendPacket(bytes, 24, Type.ServerPort.NOVICE_PORT);
+                }
+            }
+        }
+    }
+
 
     public override void Attacked() 
     {
